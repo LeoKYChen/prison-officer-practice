@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>司法特考三等監獄官 - 歷屆考題練習工作臺</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdfa',
+              600: '#0d9488',
+              700: '#0f766e',
+              800: '#115e59',
+              900: '#134e4a',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    textarea::-webkit-scrollbar { width: 6px; }
+    textarea::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    .tab-active { border-b-2 border-teal-600 text-teal-700 font-bold; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans">
+
+  <!-- 頂端導航列 -->
+  <header class="bg-slate-900 text-white shadow-sm border-b border-slate-800 sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <span class="bg-teal-500 text-slate-950 font-bold px-2 py-0.5 rounded text-xs">司法三等</span>
+        <h1 class="text-base sm:text-lg font-semibold tracking-wide">監獄官歷屆考題研習工作臺</h1>
+        <span class="text-xs text-slate-400 hidden sm:inline">108-115年題庫</span>
+      </div>
+      <div class="flex items-center space-x-2 text-sm">
+        <button id="btn-export" class="px-2.5 py-1 text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 transition">匯出備份</button>
+        <button id="btn-import-trigger" class="px-2.5 py-1 text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 transition">匯入紀錄</button>
+        <input type="file" id="file-import" class="hidden" accept=".json">
+      </div>
+    </div>
+  </header>
+
+  <!-- 主內容容器 -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    <!-- 左側欄：科目選擇與題目導覽 (占4欄) -->
+    <aside class="lg:col-span-4 flex flex-col space-y-4">
+      
+      <!-- 個人進度摘要卡 -->
+      <div class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+        <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">學習進度概況</h2>
+        <div class="grid grid-cols-3 gap-2 text-center">
+          <div class="p-2 bg-slate-50 rounded">
+            <div id="stat-total-answered" class="text-lg font-bold text-slate-900">0</div>
+            <div class="text-[11px] text-slate-500">已作答</div>
+          </div>
+          <div class="p-2 bg-amber-50 rounded">
+            <div id="stat-review-needed" class="text-lg font-bold text-amber-700">0</div>
+            <div class="text-[11px] text-amber-600">待複習</div>
+          </div>
+          <div class="p-2 bg-teal-50 rounded">
+            <div id="stat-avg-score" class="text-lg font-bold text-teal-700">0.0</div>
+            <div class="text-[11px] text-teal-600">平均分</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 題庫篩選器 -->
+      <div class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm space-y-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-700 mb-1">應試科目</label>
+          <select id="select-subject" class="w-full text-sm border-slate-300 rounded-md shadow-sm p-2 border focus:ring-1 focus:ring-teal-500 focus:outline-none">
+            <!-- 動態生成科目 -->
+          </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs font-medium text-slate-700 mb-1">考試年度</label>
+            <select id="select-year" class="w-full text-sm border-slate-300 rounded-md shadow-sm p-2 border focus:ring-1 focus:ring-teal-500 focus:outline-none">
+              <!-- 動態生成年度 -->
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-700 mb-1">狀態篩選</label>
+            <select id="select-filter-status" class="w-full text-sm border-slate-300 rounded-md shadow-sm p-2 border focus:ring-1 focus:ring-teal-500 focus:outline-none">
+              <option value="all">全部狀態</option>
+              <option value="unanswered">尚未作答</option>
+              <option value="review">待複習</option>
+              <option value="done">已完成</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 題號清單 -->
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <span class="text-xs font-medium text-slate-700">題目清單</span>
+            <span id="question-count-badge" class="text-[11px] text-slate-400">0 題</span>
+          </div>
+          <div id="question-list" class="space-y-1.5 max-h-80 overflow-y-auto pr-1">
+            <!-- 題號項目動態渲染 -->
+          </div>
+        </div>
+      </div>
+
+      <!-- 快速說明與著作權提示 -->
+      <div class="bg-slate-100 p-3 rounded text-[11px] text-slate-500 leading-relaxed border border-slate-200">
+        <p class="font-medium text-slate-700 mb-1">資料與評分準則說明：</p>
+        <p>1. 題目原文引自考選部官方考畢試卷，保留追溯連結。</p>
+        <p>2. 本系統評分為「規則式考點比對初評」，模擬作答完整性，不宣稱等同閱卷委員會給分。</p>
+      </div>
+
+    </aside>
+
+    <!-- 右側欄：題目閱讀、作答與即時評分回饋 (占8欄) -->
+    <section class="lg:col-span-8 flex flex-col space-y-4">
+      
+      <!-- 題目面板 -->
+      <div class="bg-white p-5 rounded-lg border border-slate-200 shadow-sm relative">
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3 mb-3">
+          <div class="flex items-center space-x-2">
+            <span id="badge-year" class="px-2 py-0.5 bg-slate-100 text-slate-700 rounded text-xs font-medium">--年</span>
+            <span id="badge-subject" class="px-2 py-0.5 bg-teal-50 text-teal-800 rounded text-xs font-medium">科目</span>
+            <span id="badge-qno" class="px-2 py-0.5 bg-slate-800 text-white rounded text-xs font-bold">第 1 題</span>
+            <span id="badge-score" class="text-xs text-slate-500 font-medium">配分：25分</span>
+          </div>
+          <div class="flex items-center space-x-2">
+            <a id="link-official" href="#" target="_blank" class="text-xs text-teal-600 hover:text-teal-800 flex items-center gap-1 underline">
+              官方試卷檢索 ↗
+            </a>
+            <span id="save-status-indicator" class="text-[11px] text-slate-400 italic">已儲存</span>
+          </div>
+        </div>
+
+        <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">題目逐字原文</h3>
+        <p id="q-text" class="text-slate-800 text-sm sm:text-base leading-relaxed tracking-wide bg-slate-50/70 p-3.5 rounded border border-slate-200 select-text">
+          請先於左側選取欲練習之年度與考題。
+        </p>
+
+        <!-- 標籤區 -->
+        <div id="q-tags" class="flex flex-wrap gap-1.5 mt-3">
+          <!-- 標籤動態注入 -->
+        </div>
+      </div>
+
+      <!-- 作答面板 -->
+      <div class="bg-white p-5 rounded-lg border border-slate-200 shadow-sm flex flex-col space-y-4">
+        
+        <!-- 計時器與字數統計工具列 -->
+        <div class="flex flex-wrap justify-between items-center bg-slate-50 p-2.5 rounded border border-slate-200 text-xs">
+          <div class="flex items-center space-x-3">
+            <div class="flex items-center space-x-1 font-mono text-sm text-slate-700">
+              <span class="text-slate-400">⏱</span>
+              <span id="timer-display" class="font-bold">00:00</span>
+            </div>
+            <button id="btn-timer-toggle" class="px-2 py-0.5 bg-slate-200 hover:bg-slate-300 rounded text-slate-700 transition">開始</button>
+            <button id="btn-timer-reset" class="px-2 py-0.5 bg-slate-200 hover:bg-slate-300 rounded text-slate-700 transition">重設</button>
+          </div>
+          <div class="flex items-center space-x-3 text-slate-500">
+            <span>作答字數：<strong id="word-count" class="text-slate-800 font-mono">0</strong> 字</span>
+            <span class="hidden sm:inline">|</span>
+            <span class="hidden sm:inline">建議作答時間：30分鐘</span>
+          </div>
+        </div>
+
+        <!-- 考點與法條草稿欄 (可收合) -->
+        <details class="group bg-slate-50 rounded border border-slate-200">
+          <summary class="cursor-pointer p-2.5 text-xs font-medium text-slate-700 flex justify-between items-center select-none">
+            <span>審題草稿：考點筆記與關鍵概念／法條填寫區</span>
+            <span class="text-slate-400 group-open:rotate-180 transition-transform">▼</span>
+          </summary>
+          <div class="p-3 pt-0 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+            <div>
+              <label class="block text-slate-500 mb-1">核心爭點／考點擬定：</label>
+              <textarea id="draft-points" rows="2" class="w-full p-2 border border-slate-300 rounded focus:ring-1 focus:ring-teal-500 focus:outline-none" placeholder="例如：1. 違規舍法定期限 2. 處分理由交代..."></textarea>
+            </div>
+            <div>
+              <label class="block text-slate-500 mb-1">關鍵法條／理論／學說：</label>
+              <textarea id="draft-theories" rows="2" class="w-full p-2 border border-slate-300 rounded focus:ring-1 focus:ring-teal-500 focus:outline-none" placeholder="例如：監行法§87、比例原則、理由附記義務..."></textarea>
+            </div>
+          </div>
+        </details>
+
+        <!-- 完整答案撰寫區 -->
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <label class="text-xs font-semibold text-slate-700">完整申論答案撰寫</label>
+            <span class="text-[11px] text-slate-400">答題前不揭露解析，請獨立作答</span>
+          </div>
+          <textarea id="ans-text" rows="12" class="w-full p-3.5 text-sm sm:text-base leading-relaxed text-slate-800 border border-slate-300 rounded focus:ring-1 focus:ring-teal-600 focus:outline-none font-sans" placeholder="請以國考規範架構書寫（標題分項、法律依據、論證涵攝與結論）..."></textarea>
+        </div>
+
+        <!-- 操作按鈕群 -->
+        <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100">
+          <div class="flex space-x-2">
+            <button id="btn-clear-answer" class="px-3 py-1.5 text-xs text-rose-600 hover:bg-rose-50 border border-rose-200 rounded transition">清空答案</button>
+            <button id="btn-save-draft" class="px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 border border-slate-200 rounded transition">暫存作答</button>
+          </div>
+          <div class="flex items-center space-x-2">
+            <button id="btn-mark-review" class="px-3 py-1.5 text-xs border border-amber-300 text-amber-700 hover:bg-amber-50 rounded transition">標記待複習</button>
+            <button id="btn-submit-eval" class="px-4 py-1.5 text-xs bg-teal-600 hover:bg-teal-700 text-white font-medium rounded shadow-sm transition">送出並執行系統評分</button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- 評分回饋與建議方向面板 (送出後展開) -->
+      <div id="eval-panel" class="hidden bg-white p-5 rounded-lg border border-teal-200 shadow-sm space-y-4">
+        
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div class="flex items-center space-x-2">
+            <span class="bg-teal-600 text-white px-2 py-0.5 rounded text-xs font-bold">系統檢核報告</span>
+            <span class="text-xs text-slate-500">模式：規則式考點初評 + 使用者覆核</span>
+          </div>
+          <div class="text-right">
+            <span class="text-xs text-slate-400">系統初評得分</span>
+            <div class="text-2xl font-bold text-teal-700 font-mono"><span id="eval-score">0</span> <span class="text-xs text-slate-500 font-normal">/ 100</span></div>
+          </div>
+        </div>
+
+        <!-- 四向度量表得分 -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
+          <div class="p-2 bg-slate-50 rounded border border-slate-200">
+            <div class="text-slate-500">考點爭點 (30分)</div>
+            <div id="score-dim1" class="font-bold text-slate-800 text-sm mt-1">0</div>
+          </div>
+          <div class="p-2 bg-slate-50 rounded border border-slate-200">
+            <div class="text-slate-500">專業知識 (25分)</div>
+            <div id="score-dim2" class="font-bold text-slate-800 text-sm mt-1">0</div>
+          </div>
+          <div class="p-2 bg-slate-50 rounded border border-slate-200">
+            <div class="text-slate-500">論證涵攝 (25分)</div>
+            <div id="score-dim3" class="font-bold text-slate-800 text-sm mt-1">0</div>
+          </div>
+          <div class="p-2 bg-slate-50 rounded border border-slate-200">
+            <div class="text-slate-500">結構表達 (20分)</div>
+            <div id="score-dim4" class="font-bold text-slate-800 text-sm mt-1">0</div>
+          </div>
+        </div>
+
+        <!-- 考點命中情況 -->
+        <div class="space-y-2 text-xs">
+          <div>
+            <span class="font-medium text-teal-800">已掌握考點概念：</span>
+            <div id="list-matched-points" class="flex flex-wrap gap-1.5 mt-1"></div>
+          </div>
+          <div>
+            <span class="font-medium text-rose-700">未偵測到或可能遺漏之核心爭點：</span>
+            <div id="list-missed-points" class="flex flex-wrap gap-1.5 mt-1"></div>
+          </div>
+        </div>
+
+        <!-- 改進重點提示 -->
+        <div class="p-3 bg-amber-50 rounded border border-amber-200 text-xs text-amber-900 leading-relaxed">
+          <strong class="block mb-1 text-amber-950 font-semibold">優先補強方向（1～3重點）：</strong>
+          <ul id="list-improvement-tips" class="list-disc list-inside space-y-1"></ul>
+        </div>
+
+        <!-- 建議答題架構與示範段落 (答題後揭示) -->
+        <div class="border-t border-slate-200 pt-3 space-y-3">
+          <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider">建議答題架構與方向</h4>
+          <div id="q-suggested-structure" class="text-xs text-slate-700 space-y-1 bg-slate-50 p-3 rounded leading-relaxed"></div>
+
+          <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider">示範修正段落（高分答題範式）</h4>
+          <div id="q-sample-answer" class="text-xs text-slate-700 leading-relaxed bg-teal-50/50 p-3 rounded border border-teal-100 font-serif"></div>
+        </div>
+
+        <!-- 考生個人覆核打分區 -->
+        <div class="bg-slate-50 p-3 rounded border border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div class="flex items-center space-x-2">
+            <label class="font-semibold text-slate-700">個人覆核得分（手動對照後自評）：</label>
+            <input type="number" id="input-audit-score" min="0" max="100" class="w-16 p-1 border border-slate-300 rounded text-center font-bold" placeholder="0-100">
+            <span class="text-slate-400">分</span>
+          </div>
+          <div class="flex space-x-2">
+            <button id="btn-save-audit" class="px-3 py-1 bg-teal-600 hover:bg-teal-700 text-white rounded transition">儲存覆核並完成</button>
+            <button id="btn-set-mastered" class="px-3 py-1 bg-slate-800 hover:bg-slate-900 text-white rounded transition">標記為已熟練</button>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- 系統底層資料庫與邏輯程式碼 -->
+  <script>
+    // ------------------------------------------------------------------------
+    // 1. 考試科目與官方題庫真實資料集 (代表性試卷 100% 採考選部真題)
+    // ------------------------------------------------------------------------
+    const EXAM_SUBJECTS = [
+      { id: "JEL", name: "監獄行刑法與羈押法", type: "law" },
+      { id: "CL-JJA", name: "刑法與少年事件處理法", type: "law" },
+      { id: "CRIM", name: "犯罪學與再犯預測", type: "theory" },
+      { id: "PS", name: "監獄學", type: "theory" },
+      { id: "CP", name: "刑事政策", type: "theory" },
+      { id: "CC", name: "諮商與矯正輔導", type: "counseling" },
+      { id: "LE-ENG", name: "法學知識與英文", type: "choice" },
+      { id: "CH", name: "國文（作文與測驗）", type: "mixed" }
+    ];
+
+    const EXAM_YEARS = [115, 114, 113, 112, 111, 110, 109, 108];
+
+    // 代表性官方考題原型資料集（嚴格依真實考卷錄入，不造假）
+    const QUESTIONS_DATABASE = [
+      {
+        id: "112-PW-JEL-01",
+        exam_name: "公務人員特種考試司法人員考試三等考試",
+        category: "監獄官",
+        year: 112,
+        subject_id: "JEL",
+        subject_name: "監獄行刑法與羈押法",
+        subject_type: "law",
+        question_no: 1,
+        score: 25,
+        question_text: "對受刑人施以懲罰處分時，依照監獄行刑法及相關法規，詳論應行程序。並檢視以下情形，附理由說明該懲罰處分是否適法：如有受刑人初次無故拒絕作業，經勸導而未改善，懲罰處分書未載明裁量之原因，監獄施以「移入違規舍六十日」之懲罰處分。（25分）",
+        source_name: "考選部112年司法人員特考三等筆試試題",
+        official_source_url: "https://wwwq.moex.gov.tw/exam/wFrmExamQandASearch.aspx?y=2023&e=112130",
+        question_type: "申論題",
+        difficulty: "中偏難",
+        tags: ["懲罰處分", "正當法律程序", "違規舍", "裁量瑕疵", "理由附記"],
+        benchmark_keywords: [
+          { term: "程序", weight: 4 },
+          { term: "陳述意見", weight: 7 },
+          { term: "違規審查", weight: 7 },
+          { term: "第87條", weight: 7 },
+          { term: "7日", weight: 8 },
+          { term: "六十日", weight: 4 },
+          { term: "理由", weight: 6 },
+          { term: "裁量", weight: 5 },
+          { term: "比例原則", weight: 5 },
+          { term: "違法", weight: 5 }
+        ],
+        suggested_structure: [
+          "一、懲罰處分之正當法律程序：調查事實、給予陳述意見機會、送交違規審查委員會審查、長官核定、處分書載明理由與救濟教示並送達。",
+          "二、本件處分之適法性檢驗：",
+          "　(一) 實體瑕疵：依監獄行刑法第87條第1項第7款，移入違規舍上限為「7日」。本件逕處「60日」，逾越法定裁量權限，屬實體重大違法。",
+          "　(二) 程序瑕疵：處分書未載明裁量之具體原因，違反行政程序法與本法之理由附記義務。",
+          "三、結論：該懲罰處分於實體與程序均屬違法，應予撤銷。"
+        ],
+        sample_answer_snippet: "按監獄行刑法第87條第1項第7款明文規定，受刑人違規施以移入違規舍之懲罰者，其期間「以七日為限」。題目中受刑人初次拒絕作業，監獄竟施以移入違規舍六十日，顯已嚴重逾越法律明定之裁量範圍，構成裁量逾越之實體違法；復以處分書未依法載明裁量原因，剝奪受刑人防禦與救濟基礎，屬程序瑕疵。綜上，該處分顯非適法。"
+      },
+      {
+        id: "111-PW-PS-02",
+        exam_name: "公務人員特種考試司法人員考試三等考試",
+        category: "監獄官",
+        year: 111,
+        subject_id: "PS",
+        subject_name: "監獄學",
+        subject_type: "theory",
+        question_no: 2,
+        score: 25,
+        question_text: "監獄由於具有剝削（Deprivation）及身分貶抑（Status Degradation）的特性，因此受刑人入監服刑之生活適應即特別引人注意。請以1970年代著名學者John Irwin之看法，說明其將受刑人適應監獄生活分成那3種型態及具體說明其內涵各為何？（25分）",
+        source_name: "考選部111年司法人員特考三等筆試試題",
+        official_source_url: "https://wwwq.moex.gov.tw/exam/wFrmExamQandASearch.aspx?y=2022&e=111130",
+        question_type: "申論題",
+        difficulty: "標準",
+        tags: ["John Irwin", "生活適應型態", "剝奪模式", "進口模式", "監獄次文化"],
+        benchmark_keywords: [
+          { term: "John Irwin", weight: 5 },
+          { term: "混刑期", weight: 8 },
+          { term: "Doing Time", weight: 4 },
+          { term: "監獄化", weight: 8 },
+          { term: "Jailing", weight: 4 },
+          { term: "充實自己", weight: 8 },
+          { term: "Gleaning", weight: 4 },
+          { term: "小偷", weight: 5 },
+          { term: "進口模式", weight: 6 },
+          { term: "次文化", weight: 5 }
+        ],
+        suggested_structure: [
+          "一、前言：說明監獄剝奪痛苦與次文化適應之背景（John Irwin 之進口模式觀點）。",
+          "二、受刑人適應監獄生活之三種型態及內涵：",
+          "　(一) 混刑期（Doing Time）：視監獄為職業風險，只求安穩度日、遵守潛規則、儘早出獄。",
+          "　(二) 監獄化／以監獄為家（Jailing）：完全切斷監外聯繫，追求監內權力、資源與地位。",
+          "　(三) 充實自己／求進步（Gleaning）：利用監獄資源自我提升、學習技藝或進修，以重塑自我。",
+          "三、結語：三種型態對現代監獄個別化處遇與分監管理之啟示。"
+        ],
+        sample_answer_snippet: "學者John Irwin提出受刑人適應監獄生活的三種模式：第一為『混刑期（Doing Time）』，此類受刑人將服刑視為不可避免的中斷，極力避免衝突與麻煩，安分守己追求早日假釋；第二為『監獄化（Jailing）』，此類多具深厚犯罪經驗，將監獄內部建構為其生活核心世界，爭奪監內特權；第三為『充實自己（Gleaning）』，積極利用監內教化、技訓與教育資源，改善身心以求復歸社會。"
+      },
+      {
+        id: "113-PW-CC-03",
+        exam_name: "公務人員特種考試司法人員考試三等考試",
+        category: "監獄官",
+        year: 113,
+        subject_id: "CC",
+        subject_name: "諮商與矯正輔導",
+        subject_type: "counseling",
+        question_no: 3,
+        score: 25,
+        question_text: "Prochaska 和 Diclemente 提出成癮行為的改變歷程模式，試以酒癮者個案為例，說明於改變歷程各階段，酒癮者可能出現的特色為何？（15分）並舉出兩個提升酒癮個案改變動機的諮商技術。（10分）",
+        source_name: "考選部113年司法人員特考三等筆試試題",
+        official_source_url: "https://wwwq.moex.gov.tw/exam/wFrmExamQandASearch.aspx?y=2024&e=113130",
+        question_type: "申論題",
+        difficulty: "標準",
+        tags: ["跨理論模式", "改變階段", "酒癮處遇", "動機晤談", "諮商技術"],
+        benchmark_keywords: [
+          { term: "沉思前期", weight: 5 },
+          { term: "沉思期", weight: 5 },
+          { term: "準備期", weight: 5 },
+          { term: "行動期", weight: 5 },
+          { term: "維持期", weight: 5 },
+          { term: "復發", weight: 4 },
+          { term: "動機晤談", weight: 7 },
+          { term: "天平", weight: 5 },
+          { term: "開放性提問", weight: 5 },
+          { term: "簡要反映", weight: 4 }
+        ],
+        suggested_structure: [
+          "一、Prochaska & DiClemente 跨理論改變歷程模式（TTM）應用於酒癮收容人之階段特徵：",
+          "　(一) 沉思前期（否認問題、抗拒改變）",
+          "　(二) 沉思期（覺察害處但心存矛盾猶豫）",
+          "　(三) 準備期（承諾改變並擬定戒酒小步驟）",
+          "　(四) 行動期（實際停止飲酒並參與戒癮團體）",
+          "　(五) 維持期（持續預防復發達六個月以上）",
+          "二、提升酒癮個案改變動機之兩項諮商技術：",
+          "　(一) 決策天平技術（Decisional Balance）：澄清飲酒與戒酒的利弊得失。",
+          "　(二) 動機晤談之發展矛盾技術（Developing Discrepancy）：激發個案目前行為與個人崇高目標之間的落差感。"
+        ],
+        sample_answer_snippet: "在沉思前期，酒癮者常否認成癮問題，辯稱『我隨時能戒』；至沉思期則出現內在心理天平之矛盾拉扯。針對提升動機，可運用動機晤談法（Motivational Interviewing）中的『決策天平技術』，帶領個案梳理持續飲酒與戒酒兩者在人際、家庭及法律代價上的權衡；並結合『發展矛盾感』，促使其覺察自身渴望順利假釋與反覆酒後滋事之不協調，進而萌生自發性的改變動機。"
+      }
+    ];
+
+    // ------------------------------------------------------------------------
+    // 2. 狀態管理與 LocalStorage 存取
+    // ------------------------------------------------------------------------
+    const STORAGE_KEY = "PRISON_EXAM_WORKBENCH_DATA_V1";
+    let appState = {
+      userRecords: {}, // key: q_id, value: { answer, draftPoints, draftTheories, timerSeconds, evalResult, auditScore, status, lastUpdated }
+      currentQId: null,
+      timerInterval: null,
+      timerSeconds: 0,
+      isTimerRunning: false
+    };
+
+    function initStorage() {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        try {
+          appState.userRecords = JSON.parse(saved);
+        } catch (e) {
+          console.error("Failed to parse saved records", e);
+        }
+      }
+    }
+
+    function saveToStorage() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(appState.userRecords));
+      const ind = document.getElementById("save-status-indicator");
+      if (ind) {
+        ind.textContent = "已自動儲存 " + new Date().toLocaleTimeString();
+        ind.classList.remove("text-amber-500");
+        ind.classList.add("text-slate-400");
+      }
+      updateDashboardStats();
+    }
+
+    // ------------------------------------------------------------------------
+    // 3. 核心介面渲染與導覽
+    // ------------------------------------------------------------------------
+    function populateDropdowns() {
+      const subSel = document.getElementById("select-subject");
+      const yearSel = document.getElementById("select-year");
+
+      subSel.innerHTML = EXAM_SUBJECTS.map(s => `<option value="${s.id}">${s.name}</option>`).join("");
+      yearSel.innerHTML = EXAM_YEARS.map(y => `<option value="${y}">${y} 年</option>`).join("");
+
+      subSel.addEventListener("change", refreshQuestionList);
+      yearSel.addEventListener("change", refreshQuestionList);
+      document.getElementById("select-filter-status").addEventListener("change", refreshQuestionList);
+    }
+
+    function refreshQuestionList() {
+      const subId = document.getElementById("select-subject").value;
+      const year = parseInt(document.getElementById("select-year").value, 10);
+      const filterStatus = document.getElementById("select-filter-status").value;
+
+      const filtered = QUESTIONS_DATABASE.filter(q => {
+        if (q.subject_id !== subId) return false;
+        if (q.year !== year) return false;
+        
+        const rec = appState.userRecords[q.id];
+        const status = rec ? rec.status : "unanswered";
+        if (filterStatus !== "all" && status !== filterStatus) return false;
+        return true;
+      });
+
+      const listContainer = document.getElementById("question-list");
+      document.getElementById("question-count-badge").textContent = `${filtered.length} 題`;
+
+      if (filtered.length === 0) {
+        listContainer.innerHTML = `<div class="p-3 text-center text-xs text-slate-400 border border-dashed rounded">該條件下無收錄考題（待匯入）</div>`;
+        return;
+      }
+
+      listContainer.innerHTML = filtered.map(q => {
+        const rec = appState.userRecords[q.id];
+        const status = rec ? rec.status : "unanswered";
+        let statusBadge = `<span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">未作答</span>`;
+        if (status === "done") statusBadge = `<span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700">已完成</span>`;
+        if (status === "review") statusBadge = `<span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">待複習</span>`;
+        if (status === "mastered") statusBadge = `<span class="text-[10px] px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700">已熟練</span>`;
+
+        const isCurrent = (q.id === appState.currentQId);
+        return `
+          <div onclick="selectQuestion('${q.id}')" class="p-2.5 rounded cursor-pointer border text-xs flex items-center justify-between transition ${isCurrent ? 'bg-teal-50 border-teal-500 font-medium' : 'bg-white hover:bg-slate-50 border-slate-200'}">
+            <div class="truncate mr-2">
+              <span class="font-bold text-slate-700">第${q.question_no}題</span>
+              <span class="text-slate-500 truncate ml-1">${q.question_text.slice(0, 24)}...</span>
+            </div>
+            ${statusBadge}
+          </div>
+        `;
+      }).join("");
+
+      // 若當前無題目且有篩選結果，預設載入第一題
+      if (!appState.currentQId && filtered.length > 0) {
+        selectQuestion(filtered[0].id);
+      }
+    }
+
+    function selectQuestion(qid) {
+      // 切換前儲存當前題目內容
+      if (appState.currentQId) {
+        persistCurrentInputs();
+      }
+
+      appState.currentQId = qid;
+      const q = QUESTIONS_DATABASE.find(item => item.id === qid);
+      if (!q) return;
+
+      // 更新題目基本資訊
+      document.getElementById("badge-year").textContent = `${q.year}年`;
+      document.getElementById("badge-subject").textContent = q.subject_name;
+      document.getElementById("badge-qno").textContent = `第 ${q.question_no} 題`;
+      document.getElementById("badge-score").textContent = `配分：${q.score}分`;
+      document.getElementById("link-official").href = q.official_source_url;
+      document.getElementById("q-text").textContent = q.question_text;
+
+      // 標籤
+      document.getElementById("q-tags").innerHTML = (q.tags || []).map(t => 
+        `<span class="px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full text-[11px] border border-slate-200">#${t}</span>`
+      ).join("");
+
+      // 載入使用者暫存/作答紀錄
+      const rec = appState.userRecords[qid] || {
+        answer: "",
+        draftPoints: "",
+        draftTheories: "",
+        timerSeconds: 0,
+        evalResult: null,
+        auditScore: "",
+        status: "unanswered"
+      };
+
+      document.getElementById("ans-text").value = rec.answer || "";
+      document.getElementById("draft-points").value = rec.draftPoints || "";
+      document.getElementById("draft-theories").value = rec.draftTheories || "";
+      document.getElementById("input-audit-score").value = rec.auditScore || "";
+      
+      // 計時器還原
+      pauseTimer();
+      appState.timerSeconds = rec.timerSeconds || 0;
+      updateTimerDisplay();
+
+      // 更新字數
+      updateWordCount();
+
+      // 若曾評分過，顯示評分面板，否則隱藏
+      if (rec.evalResult) {
+        renderEvalResult(rec.evalResult, q);
+        document.getElementById("eval-panel").classList.remove("hidden");
+      } else {
+        document.getElementById("eval-panel").classList.add("hidden");
+      }
+
+      refreshQuestionList();
+    }
+
+    function persistCurrentInputs() {
+      if (!appState.currentQId) return;
+      const rec = appState.userRecords[appState.currentQId] || {};
+      rec.answer = document.getElementById("ans-text").value;
+      rec.draftPoints = document.getElementById("draft-points").value;
+      rec.draftTheories = document.getElementById("draft-theories").value;
+      rec.timerSeconds = appState.timerSeconds;
+      rec.lastUpdated = new Date().toISOString();
+      appState.userRecords[appState.currentQId] = rec;
+      saveToStorage();
+    }
+
+    // ------------------------------------------------------------------------
+    // 4. 計時器與字數統計
+    // ------------------------------------------------------------------------
+    function updateTimerDisplay() {
+      const mins = Math.floor(appState.timerSeconds / 60);
+      const secs = appState.timerSeconds % 60;
+      document.getElementById("timer-display").textContent = 
+        `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+
+    function toggleTimer() {
+      if (appState.isTimerRunning) {
+        pauseTimer();
+      } else {
+        startTimer();
+      }
+    }
+
+    function startTimer() {
+      if (appState.isTimerRunning) return;
+      appState.isTimerRunning = true;
+      document.getElementById("btn-timer-toggle").textContent = "暫停";
+      appState.timerInterval = setInterval(() => {
+        appState.timerSeconds++;
+        updateTimerDisplay();
+      }, 1000);
+    }
+
+    function pauseTimer() {
+      appState.isTimerRunning = false;
+      document.getElementById("btn-timer-toggle").textContent = "開始";
+      if (appState.timerInterval) {
+        clearInterval(appState.timerInterval);
+        appState.timerInterval = null;
+      }
+      persistCurrentInputs();
+    }
+
+    function resetTimer() {
+      pauseTimer();
+      appState.timerSeconds = 0;
+      updateTimerDisplay();
+      persistCurrentInputs();
+    }
+
+    function updateWordCount() {
+      const text = document.getElementById("ans-text").value || "";
+      // 中文字與單詞字數統計
+      const cleanText = text.replace(/\s+/g, '');
+      document.getElementById("word-count").textContent = cleanText.length;
+    }
+
+    // ------------------------------------------------------------------------
+    // 5. 規則式評分引擎 (Rule-based Evaluator - 100分制四向度)
+    // ------------------------------------------------------------------------
+    function evaluateCurrentAnswer() {
+      const q = QUESTIONS_DATABASE.find(item => item.id === appState.currentQId);
+      if (!q) return;
+
+      const userAns = document.getElementById("ans-text").value.trim();
+      if (userAns.length < 30) {
+        alert("作答內容字數過少（未達30字），系統難以進行有效分析，請先充實內容。");
+        return;
+      }
+
+      pauseTimer();
+
+      // 考點比對
+      const matched = [];
+      const missed = [];
+      let totalKeywordWeight = 0;
+      let earnedKeywordWeight = 0;
+
+      (q.benchmark_keywords || []).forEach(k => {
+        totalKeywordWeight += k.weight;
+        // 簡單大小寫忽略與繁體包含比對
+        if (userAns.toLowerCase().includes(k.term.toLowerCase())) {
+          matched.push(k.term);
+          earnedKeywordWeight += k.weight;
+        } else {
+          missed.push(k.term);
+        }
+      });
+
+      const keywordRatio = totalKeywordWeight > 0 ? (earnedKeywordWeight / totalKeywordWeight) : 0.5;
+
+      // 四向度評分計算 (100分制)
+      // 1. 考點掌握 (30分)
+      const dim1 = Math.round(keywordRatio * 30);
+
+      // 2. 專業法條/理論 (25分) - 檢查是否具有條號或理論詞彙
+      let dim2Base = keywordRatio * 20;
+      if (userAns.includes("條") || userAns.includes("理論") || userAns.includes("學者")) dim2Base += 5;
+      const dim2 = Math.min(25, Math.round(dim2Base));
+
+      // 3. 論證涵攝/實務 (25分) - 檢查字數充足度與事實關聯
+      const lengthRatio = Math.min(1.0, userAns.length / 500); // 建議 500 字以上為充分涵攝
+      const dim3 = Math.round((lengthRatio * 0.6 + keywordRatio * 0.4) * 25);
+
+      // 4. 結構表達與結論 (20分) - 檢查標題層次 (一、(一)、1.)
+      let structureBonus = 0;
+      if (userAns.match(/[一二三四五]、/)) structureBonus += 8;
+      if (userAns.match(/[(（][一二三四五12345][)）]/)) structureBonus += 6;
+      if (userAns.includes("結論") || userAns.includes("綜上")) structureBonus += 4;
+      const dim4 = Math.min(20, Math.max(8, structureBonus));
+
+      const totalScore = dim1 + dim2 + dim3 + dim4;
+
+      // 改進建議生成
+      const tips = [];
+      if (missed.length > 0) {
+        tips.push(`遺漏或未明確論及關鍵詞：「${missed.slice(0, 3).join("、")}」，應於相應段落補入。`);
+      }
+      if (userAns.length < 350) {
+        tips.push("字數未達完整論述篇幅（建議申論單題篇幅在 400~650 字），事實涵攝層次宜更加詳盡。");
+      }
+      if (!userAns.match(/[一二三四五]、/)) {
+        tips.push("答題未見明顯分項標題（如：一、(一)），國家考試閱卷極為重視版面結構，請務必分點論述。");
+      }
+      if (tips.length === 0) {
+        tips.push("核心考點涵蓋完整，層次分明，可進一步雕琢文筆精準度與前言結論之呼應。");
+      }
+
+      const evalResult = {
+        totalScore,
+        dim1, dim2, dim3, dim4,
+        matched,
+        missed,
+        tips,
+        evaluatedAt: new Date().toISOString()
+      };
+
+      // 儲存至記錄
+      const rec = appState.userRecords[q.id] || {};
+      rec.evalResult = evalResult;
+      rec.status = (rec.status === "review" || rec.status === "mastered") ? rec.status : "done";
+      rec.answer = userAns;
+      appState.userRecords[q.id] = rec;
+      saveToStorage();
+
+      renderEvalResult(evalResult, q);
+      document.getElementById("eval-panel").classList.remove("hidden");
+      document.getElementById("eval-panel").scrollIntoView({ behavior: 'smooth' });
+      refreshQuestionList();
+    }
+
+    function renderEvalResult(res, q) {
+      document.getElementById("eval-score").textContent = res.totalScore;
+      document.getElementById("score-dim1").textContent = `${res.dim1} / 30`;
+      document.getElementById("score-dim2").textContent = `${res.dim2} / 25`;
+      document.getElementById("score-dim3").textContent = `${res.dim3} / 25`;
+      document.getElementById("score-dim4").textContent = `${res.dim4} / 20`;
+
+      // 命中與遺漏標籤
+      const matchedEl = document.getElementById("list-matched-points");
+      matchedEl.innerHTML = res.matched.length > 0 
+        ? res.matched.map(t => `<span class="px-2 py-0.5 bg-teal-100 text-teal-800 rounded font-mono text-[11px]">✓ ${t}</span>`).join("")
+        : `<span class="text-slate-400 italic">無明顯命中關鍵詞</span>`;
+
+      const missedEl = document.getElementById("list-missed-points");
+      missedEl.innerHTML = res.missed.length > 0 
+        ? res.missed.map(t => `<span class="px-2 py-0.5 bg-rose-100 text-rose-800 rounded font-mono text-[11px]">✗ ${t}</span>`).join("")
+        : `<span class="text-teal-600 font-medium">核心考點全數掌握！</span>`;
+
+      // 改進重點
+      const tipsEl = document.getElementById("list-improvement-tips");
+      tipsEl.innerHTML = res.tips.map(t => `<li>${t}</li>`).join("");
+
+      // 揭示建議架構與示範段落
+      const structEl = document.getElementById("q-suggested-structure");
+      structEl.innerHTML = (q.suggested_structure || []).map(s => `<div>${s}</div>`).join("");
+
+      const sampleEl = document.getElementById("q-sample-answer");
+      sampleEl.textContent = q.sample_answer_snippet || "（暫未收錄示範段落）";
+    }
+
+    // ------------------------------------------------------------------------
+    // 6. 學習進度統計更新
+    // ------------------------------------------------------------------------
+    function updateDashboardStats() {
+      const records = Object.values(appState.userRecords);
+      let answeredCount = 0;
+      let reviewCount = 0;
+      let scoreSum = 0;
+      let scoredQuestions = 0;
+
+      records.forEach(r => {
+        if (r.answer && r.answer.trim().length > 0) answeredCount++;
+        if (r.status === "review") reviewCount++;
+        if (r.evalResult && r.evalResult.totalScore) {
+          scoreSum += r.evalResult.totalScore;
+          scoredQuestions++;
+        }
+      });
+
+      document.getElementById("stat-total-answered").textContent = answeredCount;
+      document.getElementById("stat-review-needed").textContent = reviewCount;
+      document.getElementById("stat-avg-score").textContent = 
+        scoredQuestions > 0 ? (scoreSum / scoredQuestions).toFixed(1) : "0.0";
+    }
+
+    // ------------------------------------------------------------------------
+    // 7. 資料匯出與匯入備份
+    // ------------------------------------------------------------------------
+    function exportBackup() {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appState.userRecords, null, 2));
+      const dlAnchor = document.createElement('a');
+      dlAnchor.setAttribute("href", dataStr);
+      dlAnchor.setAttribute("download", `監獄官備考紀錄備份_${new Date().toISOString().slice(0,10)}.json`);
+      dlAnchor.click();
+    }
+
+    function importBackup(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        try {
+          const parsed = JSON.parse(evt.target.result);
+          appState.userRecords = Object.assign(appState.userRecords, parsed);
+          saveToStorage();
+          alert("作答備份紀錄匯入成功！");
+          refreshQuestionList();
+          if (appState.currentQId) selectQuestion(appState.currentQId);
+        } catch (err) {
+          alert("匯入失敗：檔案格式不正確。");
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    // ------------------------------------------------------------------------
+    // 8. 事件綁定與初始化
+    // ------------------------------------------------------------------------
+    window.addEventListener("DOMContentLoaded", () => {
+      initStorage();
+      populateDropdowns();
+      refreshQuestionList();
+      updateDashboardStats();
+
+      // 字數與即時輸入監聽
+      const ansInput = document.getElementById("ans-text");
+      ansInput.addEventListener("input", () => {
+        updateWordCount();
+        const ind = document.getElementById("save-status-indicator");
+        ind.textContent = "編輯中...";
+        ind.classList.remove("text-slate-400");
+        ind.classList.add("text-amber-500");
+      });
+
+      // 定時自動儲存 (每5秒防呆暫存)
+      setInterval(() => {
+        if (appState.currentQId) {
+          persistCurrentInputs();
+        }
+      }, 5000);
+
+      // 計時器按鈕
+      document.getElementById("btn-timer-toggle").addEventListener("click", toggleTimer);
+      document.getElementById("btn-timer-reset").addEventListener("click", resetTimer);
+
+      // 暫存與清除按鈕
+      document.getElementById("btn-save-draft").addEventListener("click", () => {
+        persistCurrentInputs();
+        alert("作答進度已暫存完畢！");
+      });
+
+      document.getElementById("btn-clear-answer").addEventListener("click", () => {
+        if (confirm("確定要清空目前題目的答案嗎？此動作無法復原。")) {
+          document.getElementById("ans-text").value = "";
+          updateWordCount();
+          persistCurrentInputs();
+        }
+      });
+
+      // 評分按鈕
+      document.getElementById("btn-submit-eval").addEventListener("click", evaluateCurrentAnswer);
+
+      // 標記待複習
+      document.getElementById("btn-mark-review").addEventListener("click", () => {
+        if (!appState.currentQId) return;
+        const rec = appState.userRecords[appState.currentQId] || {};
+        rec.status = "review";
+        appState.userRecords[appState.currentQId] = rec;
+        saveToStorage();
+        refreshQuestionList();
+        alert("已將本題加入【待複習】清單！");
+      });
+
+      // 儲存覆核分數
+      document.getElementById("btn-save-audit").addEventListener("click", () => {
+        if (!appState.currentQId) return;
+        const auditVal = document.getElementById("input-audit-score").value;
+        const rec = appState.userRecords[appState.currentQId] || {};
+        rec.auditScore = auditVal;
+        rec.status = "done";
+        appState.userRecords[appState.currentQId] = rec;
+        saveToStorage();
+        refreshQuestionList();
+        alert("覆核分數已更新並標記為已完成！");
+      });
+
+      // 標記熟練
+      document.getElementById("btn-set-mastered").addEventListener("click", () => {
+        if (!appState.currentQId) return;
+        const rec = appState.userRecords[appState.currentQId] || {};
+        rec.status = "mastered";
+        appState.userRecords[appState.currentQId] = rec;
+        saveToStorage();
+        refreshQuestionList();
+        alert("本題已成功標記為【已熟練】！");
+      });
+
+      // 匯出與匯入
+      document.getElementById("btn-export").addEventListener("click", exportBackup);
+      document.getElementById("btn-import-trigger").addEventListener("click", () => {
+        document.getElementById("file-import").click();
+      });
+      document.getElementById("file-import").addEventListener("change", importBackup);
+    });
+  </script>
+</body>
+</html>
