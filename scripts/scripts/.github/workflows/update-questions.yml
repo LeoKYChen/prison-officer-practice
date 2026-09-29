@@ -1,0 +1,37 @@
+name: 自動抓取考選部考題並更新題庫
+
+on:
+  workflow_dispatch: # 支援手動一鍵點擊執行
+  schedule:
+    - cron: '0 0 1,15 * *' # 每月 1 號與 15 號自動檢查更新
+
+permissions:
+  contents: write
+
+jobs:
+  scrape-and-update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r scripts/requirements.txt
+
+      - name: Run Crawler
+        run: |
+          python scripts/crawler.py
+
+      - name: Commit and Push Updated Questions
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add questions.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "chore(db): 自動同步考選部最新題庫" && git push)
