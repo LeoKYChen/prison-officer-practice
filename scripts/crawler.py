@@ -141,10 +141,10 @@ def main():
             if qs:
                 print(f"✓ 成功擷取 {year}年 {subject['name']} 共 {len(qs)} 題")
                 all_questions.extend(qs)
-            else:
+                else:
                 # 備用下載路徑：部分年度代碼為 130 結尾
                 backup_code = f"{year}130"
-                pdf_url_backup = f"https://wwwc.moex.gov.tw/main/ExamFileDownload.svc?FileDownload/{ce_year}/{pdf_url_backup}_{subject['paper_code']}.pdf"
+                pdf_url_backup = f"https://wwwc.moex.gov.tw/main/ExamFileDownload.svc?FileDownload/{ce_year}/{backup_code}_{subject['paper_code']}.pdf"
                 qs_backup = extract_questions_from_pdf(pdf_url_backup, year, subject)
                 if qs_backup:
                      print(f"✓ (備用路徑) 成功擷取 {year}年 {subject['name']} 共 {len(qs_backup)} 題")
